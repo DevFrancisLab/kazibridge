@@ -26,8 +26,14 @@ const HeroSection = () => {
 
   useEffect(() => {
     if (isTypingComplete) {
+      let blinkCount = 0;
       const blinkInterval = setInterval(() => {
         setShowCursor(prev => !prev);
+        blinkCount++;
+        if (blinkCount >= 6) { // 3 full blinks (on-off cycles)
+          setShowCursor(false);
+          clearInterval(blinkInterval);
+        }
       }, 500);
       return () => clearInterval(blinkInterval);
     }
@@ -45,7 +51,7 @@ const HeroSection = () => {
 
   return (
     <section
-      className="relative min-h-[90vh] flex items-center"
+      className="relative h-screen flex items-center"
       style={{
         backgroundImage: `url(${heroBg})`,
         backgroundSize: "cover",

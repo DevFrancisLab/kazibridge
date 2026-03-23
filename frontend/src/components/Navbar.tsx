@@ -22,7 +22,7 @@ const Navbar = () => {
     >
       <div className="container mx-auto flex items-center justify-between py-4 px-6">
         <a href="#" className={`text-xl font-bold tracking-tight transition-colors ${scrolled ? "text-foreground" : "text-primary-foreground"}`}>
-          Lovable Freelance
+          KaziBridge
         </a>
 
         <div className="hidden md:flex items-center gap-8">

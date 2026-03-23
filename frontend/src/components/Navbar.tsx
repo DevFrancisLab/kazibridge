@@ -1,10 +1,12 @@
 import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
+import { useNavigate } from "react-router-dom";
 
 const navLinks = ["Features", "How It Works", "Pricing", "Contact"];
 
 const Navbar = () => {
   const [scrolled, setScrolled] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 50);
@@ -41,6 +43,7 @@ const Navbar = () => {
 
         <div className="flex items-center gap-3">
           <button
+            onClick={() => navigate("/dashboard")}
             className={`text-sm font-medium transition-colors hover:opacity-80 ${
               scrolled ? "text-foreground" : "text-primary-foreground"
             }`}

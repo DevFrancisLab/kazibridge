@@ -94,6 +94,19 @@ export default {
         "fade-up": "fade-up 0.6s ease-out forwards",
       },
     },
+  },
+  plugins: [
+    require("tailwindcss-animate"),
+    function ({ addUtilities }: any) {
+      addUtilities({
+        ".scrollbar-hide": {
+          "-ms-overflow-style": "none",
+          "scrollbar-width": "none",
+          "&::-webkit-scrollbar": {
+            display: "none",
+          },
+        },
+      });
     },
-  plugins: [require("tailwindcss-animate")],
+  ],
 } satisfies Config;

@@ -58,8 +58,8 @@ const HeroSection = () => {
         backgroundPosition: "center",
       }}
     >
-      {/* Dark overlay */}
-      <div className="absolute inset-0 bg-foreground/40" />
+      {/* Dark overlay: reduced opacity for improved readability */}
+      <div className="absolute inset-0 bg-foreground/20" />
 
       <div className="relative z-10 container mx-auto px-6 md:px-12 lg:px-16">
         <div className="max-w-xl animate-fade-up">

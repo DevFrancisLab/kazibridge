@@ -20,7 +20,7 @@ const AIRecommendations = () => {
               <p className="text-sm font-semibold text-slate-900 dark:text-white">{item.name}</p>
               <p className="text-xs text-gray-500 dark:text-gray-400">{item.skill}</p>
             </div>
-            <span className="rounded-md bg-green-100 px-2 py-1 text-xs font-semibold text-emerald-700">{item.match}% match</span>
+            <span className="rounded-md bg-slate-100 px-2 py-1 text-xs font-semibold text-slate-700">{item.match}% match</span>
           </div>
         ))}
       </div>

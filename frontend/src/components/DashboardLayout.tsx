@@ -9,10 +9,6 @@ import {
   LogOut,
 } from "lucide-react";
 import { Briefcase, Clock, CheckCircle2, DollarSign } from "lucide-react";
-import BidsList from "@/components/BidsList";
-import PaymentSection from "@/components/PaymentSection";
-import ActiveContract from "@/components/ActiveContract";
-import AIRecommendations from "@/components/AIRecommendations";
 
 const navItems = [
   { label: "Dashboard", icon: Home },
@@ -123,7 +119,7 @@ export const DashboardContent = () => {
               title: "Completed Jobs",
               value: "126",
               icon: CheckCircle2,
-              iconColor: "text-green-500",
+              iconColor: "text-slate-600",
             },
             {
               title: "Total Spent",
@@ -183,7 +179,7 @@ export const DashboardContent = () => {
                 <span
                   className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
                     job.status === "Open"
-                      ? "bg-green-100 text-green-700"
+                      ? "bg-sky-100 text-sky-700"
                       : job.status === "In Progress"
                       ? "bg-amber-100 text-amber-700"
                       : "bg-slate-100 text-slate-700"
@@ -208,35 +204,16 @@ export const DashboardContent = () => {
           ))}
         </div>
       </section>
-
-      <BidsList />
-
-      <PaymentSection />
-
-      <AIRecommendations />
-
-      <ActiveContract />
-
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
-        <h3 className="text-lg font-semibold text-black dark:text-white">Recent activity</h3>
-        <div className="mt-4 space-y-3">
-          {["New onboarding completed", "Subscription renewed", "2 tasks assigned", "Client feedback received"].map((item) => (
-            <p key={item} className="rounded-lg bg-gray-50 px-3 py-2 text-sm text-gray-600 dark:bg-slate-900 dark:text-gray-300">
-              {item}
-            </p>
-          ))}
-        </div>
-      </section>
     </main>
   );
 };
 
 const DashboardLayout = () => {
   return (
-    <div className="min-h-screen bg-slate-100 font-sans text-black dark:bg-slate-950 dark:text-white">
+    <div className="min-h-screen font-sans text-black dark:bg-slate-950 dark:text-white">
       <DashboardTopbar onOpenSidebar={() => {}} />
 
-      <div className="h-[calc(100vh-4rem)] overflow-y-auto p-0 md:p-4">
+      <div className="h-[calc(100vh-4rem)] overflow-y-auto p-0 md:p-4 scrollbar-hide">
         <div className="mx-auto w-full max-w-7xl px-0 md:px-4">
           <DashboardContent />
         </div>

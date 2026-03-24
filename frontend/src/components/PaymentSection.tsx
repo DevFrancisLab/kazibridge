@@ -73,7 +73,8 @@ const PaymentSection = () => {
 
         <button
           onClick={handlePayNow}
-          className="w-full rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+          className="w-full rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          style={{ backgroundColor: '#70e000' }}
         >
           Pay Now
         </button>

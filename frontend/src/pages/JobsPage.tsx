@@ -17,7 +17,8 @@ const JobsPage = () => (
           <p className="mt-1 text-sm text-gray-500 dark:text-gray-300">Status: {job.status}</p>
           <Link
             to={`/jobs/${job.id}`}
-            className="mt-3 inline-block rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+            className="mt-3 inline-block rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+            style={{ backgroundColor: '#70e000' }}
           >
             View Details
           </Link>

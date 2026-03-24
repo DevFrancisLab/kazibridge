@@ -197,7 +197,7 @@ export const DashboardContent = () => {
               <p className="mb-4 text-sm text-slate-500 dark:text-gray-300">Bids: {job.bids}</p>
 
               <div className="flex flex-wrap gap-2">
-                <button className="inline-flex items-center justify-center rounded-lg bg-blue-500 px-3 py-2 text-sm font-medium text-white transition hover:bg-blue-600">
+                <button className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90" style={{ backgroundColor: '#70e000' }}>
                   View Bids
                 </button>
                 <button className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800">

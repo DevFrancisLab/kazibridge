@@ -54,7 +54,8 @@ const ActiveContract = () => {
       <div className="mt-4 flex flex-wrap gap-2">
         <button
           onClick={handleComplete}
-          className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+          className="rounded-lg px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+          style={{ backgroundColor: '#70e000' }}
         >
           Mark as Complete
         </button>

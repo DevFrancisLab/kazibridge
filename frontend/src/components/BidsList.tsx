@@ -72,7 +72,8 @@ const BidsList = () => {
                 </button>
                 <button
                   onClick={() => handleAccept(bid.id)}
-                  className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                  className="rounded-lg px-3 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+                  style={{ backgroundColor: '#70e000' }}
                 >
                   Accept
                 </button>

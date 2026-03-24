@@ -84,6 +84,10 @@ const SignupPage = () => {
       if (token) {
         localStorage.setItem('accessToken', token);
         localStorage.setItem('refreshToken', loginResult.data?.tokens?.refresh ?? '');
+        const loginRole = loginResult.data?.data?.role ?? role;
+        if (loginRole) {
+          localStorage.setItem('role', loginRole);
+        }
         
         // Redirect to dashboard
         navigate('/dashboard');

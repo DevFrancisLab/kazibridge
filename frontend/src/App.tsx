@@ -10,6 +10,8 @@ import SignupPage from "./pages/SignupPage.tsx";
 import ProtectedRoute from "@/components/ProtectedRoute";
 import DashboardShell from "@/components/DashboardShell";
 import DashboardPage from "./pages/DashboardPage";
+import ClientDashboardPage from "./pages/ClientDashboardPage";
+import FreelancerDashboardPage from "./pages/FreelancerDashboardPage";
 import JobsPage from "./pages/JobsPage";
 import JobDetailsPage from "./pages/JobDetailsPage";
 import PaymentsPage from "./pages/PaymentsPage";
@@ -35,6 +37,22 @@ const App = () => (
             }
           >
             <Route path="/dashboard" element={<DashboardPage />} />
+            <Route
+              path="/client-dashboard"
+              element={
+                <ProtectedRoute allowedRole="CLIENT">
+                  <ClientDashboardPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/freelancer-dashboard"
+              element={
+                <ProtectedRoute allowedRole="FREELANCER">
+                  <FreelancerDashboardPage />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/jobs" element={<JobsPage />} />
             <Route path="/jobs/:id" element={<JobDetailsPage />} />
             <Route path="/payments" element={<PaymentsPage />} />

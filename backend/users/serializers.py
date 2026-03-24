@@ -30,6 +30,11 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create user with hashed password."""
         password = validated_data.pop('password')
+
+        # Ensure username is set for AbstractUser unique username constraint.
+        validated_data['username'] = validated_data.get('email', '')
+        validated_data.setdefault('first_name', '')
+
         user = User(**validated_data)
         user.set_password(password)
         user.save()
@@ -61,6 +66,11 @@ class RegisterSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         """Create user with hashed password."""
         password = validated_data.pop('password')
+
+        # Ensure username is set for AbstractUser unique username constraint.
+        validated_data['username'] = validated_data.get('email', '')
+        validated_data.setdefault('first_name', '')
+
         user = User(**validated_data)
         user.set_password(password)
         user.save()

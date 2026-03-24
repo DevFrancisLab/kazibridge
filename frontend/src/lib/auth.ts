@@ -113,6 +113,7 @@ export async function logoutUser(): Promise<ApiResponse> {
 
   localStorage.removeItem('accessToken');
   localStorage.removeItem('refreshToken');
+  localStorage.removeItem('role');
 
   return {
     success: true,

@@ -34,6 +34,21 @@ const LoginPage = () => {
 
     localStorage.setItem('accessToken', token);
     localStorage.setItem('refreshToken', result.data?.tokens?.refresh ?? '');
+    const userRole = result.data?.data?.role;
+    if (userRole) {
+      localStorage.setItem('role', userRole);
+    } else {
+      localStorage.removeItem('role');
+    }
+
+    if (userRole === 'CLIENT') {
+      navigate('/client-dashboard');
+      return;
+    }
+    if (userRole === 'FREELANCER') {
+      navigate('/freelancer-dashboard');
+      return;
+    }
 
     navigate('/dashboard');
   };

@@ -19,7 +19,14 @@ class RegisterView(APIView):
     def post(self, request, *args, **kwargs):
         serializer = RegisterSerializer(data=request.data)
         if serializer.is_valid():
-            user = serializer.save()
+            try:
+                user = serializer.save()
+            except IntegrityError as e:
+                return Response({
+                    'success': False,
+                    'errors': {'detail': str(e)},
+                }, status=status.HTTP_400_BAD_REQUEST)
+
             return Response({
                 'success': True,
                 'message': 'User registered successfully.',

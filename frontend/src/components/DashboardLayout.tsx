@@ -210,12 +210,14 @@ export const DashboardContent = () => {
 
 const DashboardLayout = () => {
   return (
-    <div className="min-h-screen font-sans text-black dark:bg-slate-950 dark:text-white">
+    <div className="min-h-screen flex flex-col font-sans text-black dark:bg-slate-950 dark:text-white">
       <DashboardTopbar onOpenSidebar={() => {}} />
 
-      <div className="h-[calc(100vh-4rem)] overflow-y-auto p-0 md:p-4 scrollbar-hide">
-        <div className="mx-auto w-full max-w-7xl px-0 md:px-4">
-          <DashboardContent />
+      <div className="flex-1 overflow-y-auto scrollbar-hide">
+        <div className="h-full">
+          <div className="mx-auto w-full max-w-7xl px-0 md:px-4 p-0 md:p-4">
+            <DashboardContent />
+          </div>
         </div>
       </div>
     </div>

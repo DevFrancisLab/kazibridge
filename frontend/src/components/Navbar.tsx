@@ -43,14 +43,14 @@ const Navbar = () => {
 
         <div className="flex items-center gap-3">
           <button
-            onClick={() => navigate("/dashboard")}
+            onClick={() => navigate("/login")}
             className={`text-sm font-medium transition-colors hover:opacity-80 ${
               scrolled ? "text-foreground" : "text-primary-foreground"
             }`}
           >
             Login
           </button>
-          <Button size="sm" className="rounded-lg">
+          <Button size="sm" className="rounded-lg" onClick={() => navigate("/signup")}>
             Sign Up
           </Button>
         </div>

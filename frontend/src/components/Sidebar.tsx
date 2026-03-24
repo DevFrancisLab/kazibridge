@@ -7,6 +7,7 @@ import {
   MessageCircle,
   LogOut,
 } from "lucide-react";
+import { logoutUser } from "@/lib/auth";
 
 interface NavItem {
   key: string;
@@ -61,7 +62,10 @@ const Sidebar = () => {
         </div>
 
         <button
-          onClick={() => navigate('/')}
+          onClick={async () => {
+            await logoutUser();
+            navigate('/login');
+          }}
           className="mt-3 flex w-full items-center justify-center gap-2 rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-gray-100 hover:text-slate-900"
         >
           <LogOut className="h-4 w-4" />

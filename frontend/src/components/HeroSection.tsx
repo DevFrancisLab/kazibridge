@@ -89,9 +89,6 @@ const HeroSection = () => {
             >
               <Mic className="w-5 h-5" />
             </button>
-            <Button onClick={handleSubmit} className="rounded-lg px-6">
-              Get Started
-            </Button>
           </div>
         </div>
       </div>

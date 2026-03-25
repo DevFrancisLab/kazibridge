@@ -39,17 +39,15 @@ class Job(models.Model):
         ('OPEN', 'Open'),
         ('IN_PROGRESS', 'In Progress'),
         ('COMPLETED', 'Completed'),
-        ('CANCELLED', 'Cancelled'),
     ]
     
     title = models.CharField(max_length=200)
     description = models.TextField()
     budget = models.DecimalField(max_digits=10, decimal_places=2)
-    client = models.ForeignKey(User, on_delete=models.CASCADE, related_name='posted_jobs')
-    freelancer = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='assigned_jobs')
+    deadline = models.DateField()
+    created_by = models.ForeignKey(User, on_delete=models.CASCADE, related_name='jobs')
     status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='OPEN')
     created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
     
     class Meta:
         ordering = ['-created_at']
@@ -96,3 +94,26 @@ class Earnings(models.Model):
     
     def __str__(self):
         return f"{self.freelancer.email} - ${self.amount}"
+
+
+class Bid(models.Model):
+    """Bid model for freelancers bidding on jobs."""
+
+    STATUS_CHOICES = [
+        ('PENDING', 'Pending'),
+        ('ACCEPTED', 'Accepted'),
+        ('REJECTED', 'Rejected'),
+    ]
+
+    job = models.ForeignKey(Job, on_delete=models.CASCADE, related_name='bids')
+    freelancer = models.ForeignKey(User, on_delete=models.CASCADE, related_name='bids')
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    proposal = models.TextField()
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='PENDING')
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ['-created_at']
+
+    def __str__(self):
+        return f"Bid({self.job.title} - {self.freelancer.email} - {self.amount})"

@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from django.db import IntegrityError
-from .models import Job, Task, Earnings
+from .models import Job, Task, Earnings, Bid
 
 User = get_user_model()
 
@@ -125,14 +125,12 @@ class UserSerializer(serializers.ModelSerializer):
 
 class JobSerializer(serializers.ModelSerializer):
     """Serializer for Job model."""
-    
-    client = UserSerializer(read_only=True)
-    freelancer = UserSerializer(read_only=True)
+    created_by = UserSerializer(read_only=True)
     
     class Meta:
         model = Job
-        fields = ('id', 'title', 'description', 'budget', 'client', 'freelancer', 'status', 'created_at', 'updated_at')
-        read_only_fields = ('id', 'created_at', 'updated_at')
+        fields = ('id', 'title', 'description', 'budget', 'deadline', 'created_by', 'status', 'created_at')
+        read_only_fields = ('id', 'created_at', 'created_by')
 
 
 class JobCreateSerializer(serializers.ModelSerializer):
@@ -140,11 +138,11 @@ class JobCreateSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = Job
-        fields = ('title', 'description', 'budget')
+        fields = ('title', 'description', 'budget', 'deadline')
     
     def create(self, validated_data):
         """Create job with client set to current user."""
-        validated_data['client'] = self.context['request'].user
+        validated_data['created_by'] = self.context['request'].user
         return super().create(validated_data)
 
 
@@ -160,6 +158,20 @@ class TaskSerializer(serializers.ModelSerializer):
         read_only_fields = ('id', 'created_at', 'updated_at')
 
 
+class TaskUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating only task status."""
+
+    class Meta:
+        model = Task
+        fields = ('status',)
+
+    def validate_status(self, value):
+        valid_statuses = ['PENDING', 'IN_PROGRESS', 'COMPLETED', 'CANCELLED']
+        if value not in valid_statuses:
+            raise serializers.ValidationError(f"Status must be one of {', '.join(valid_statuses)}.")
+        return value
+
+
 class EarningsSerializer(serializers.ModelSerializer):
     """Serializer for Earnings model."""
     
@@ -170,3 +182,39 @@ class EarningsSerializer(serializers.ModelSerializer):
         model = Earnings
         fields = ('id', 'freelancer', 'job', 'amount', 'earned_at')
         read_only_fields = ('id', 'earned_at')
+
+
+class BidSerializer(serializers.ModelSerializer):
+    """Serializer for Bid model (read/write)."""
+
+    freelancer = UserSerializer(read_only=True)
+    job = serializers.PrimaryKeyRelatedField(queryset=Job.objects.all())
+
+    class Meta:
+        model = Bid
+        fields = ('id', 'job', 'freelancer', 'amount', 'proposal', 'status', 'created_at')
+        read_only_fields = ('id', 'created_at', 'freelancer', 'status')
+
+    def create(self, validated_data):
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['freelancer'] = request.user
+        return super().create(validated_data)
+
+    def validate_amount(self, value):
+        if value <= 0:
+            raise serializers.ValidationError("Bid amount must be greater than zero.")
+        return value
+
+
+class BidUpdateSerializer(serializers.ModelSerializer):
+    """Serializer for updating bid status (client only)."""
+
+    class Meta:
+        model = Bid
+        fields = ('status',)
+
+    def validate_status(self, value):
+        if value not in ['ACCEPTED', 'REJECTED']:
+            raise serializers.ValidationError("Status must be ACCEPTED or REJECTED.")
+        return value

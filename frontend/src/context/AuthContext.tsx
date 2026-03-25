@@ -38,14 +38,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     console.log("  storedRole:", storedRole);
     console.log("  storedEmail:", storedEmail);
 
-    if (storedToken) {
+    if (storedToken && storedRole && storedEmail) {
       setToken(storedToken);
-    }
-    if (storedRole) {
       setRole(storedRole);
-    }
-    if (storedEmail) {
       setUser({ email: storedEmail, role: storedRole });
+      console.log("AuthContext initialized with stored credentials");
     }
   }, []);
 

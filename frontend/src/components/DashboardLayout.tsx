@@ -9,6 +9,7 @@ import { Briefcase, Clock, CheckCircle2, DollarSign } from "lucide-react";
 import { NavLink } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { getJobs, getTasks, getEarnings } from "../lib/auth";
+import api from "@/lib/api";
 
 interface Job {
   id: number;
@@ -55,6 +56,20 @@ interface Earnings {
     email: string;
     role: string;
   };
+}
+
+interface Bid {
+  id: number;
+  job: number;
+  freelancer: {
+    id: number;
+    email: string;
+    role: string;
+  };
+  amount: number;
+  proposal: string;
+  status: string;
+  created_at: string;
 }
 
 const navItems = [
@@ -163,6 +178,21 @@ export const DashboardContent = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [earnings, setEarnings] = useState<Earnings[]>([]);
   const [loading, setLoading] = useState(true);
+  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
+  const [bids, setBids] = useState<Bid[]>([]);
+  const [bidsLoading, setBidsLoading] = useState(false);
+  const [bidsError, setBidsError] = useState<string | null>(null);
+  const [showPostJobForm, setShowPostJobForm] = useState(false);
+  const [jobTitle, setJobTitle] = useState("");
+  const [jobDescription, setJobDescription] = useState("");
+  const [jobBudget, setJobBudget] = useState<number>(0);
+  const [jobDeadline, setJobDeadline] = useState("");
+  const [postJobLoading, setPostJobLoading] = useState(false);
+  const [postJobError, setPostJobError] = useState<string | null>(null);
+  const [myBids, setMyBids] = useState<Bid[]>([]);
+  const [myBidsLoading, setMyBidsLoading] = useState(false);
+
+  console.log("DashboardContent rendered, role:", role);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -193,6 +223,125 @@ export const DashboardContent = () => {
     };
 
     fetchData();
+  }, [role]);
+
+  const fetchBids = async (jobId: number) => {
+    setBidsLoading(true);
+    setBidsError(null);
+    try {
+      const response = await api.get(`jobs/${jobId}/bids/`);
+      // Handle paginated response format
+      const bidsData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data?.results || response.data?.data || [];
+      setBids(bidsData);
+    } catch (error) {
+      setBidsError("Unable to load bids for this job.");
+      setBids([]);
+    } finally {
+      setBidsLoading(false);
+    }
+  };
+
+  const handleJobClick = (jobId: number) => {
+    setSelectedJobId(jobId);
+    fetchBids(jobId);
+  };
+
+  const handleBidAction = async (bidId: number, action: 'ACCEPTED' | 'REJECTED') => {
+    try {
+      await api.patch(`bids/${bidId}/`, { status: action });
+      setBids((prev) => prev.map((bid) => bid.id === bidId ? { ...bid, status: action } : bid));
+    } catch (error) {
+      setBidsError(`Failed to ${action.toLowerCase()} bid.`);
+    }
+  };
+
+  const handlePostJob = async () => {
+    setPostJobError(null);
+
+    if (!jobTitle.trim() || !jobDescription.trim() || jobBudget <= 0 || !jobDeadline) {
+      setPostJobError("Please fill in all fields with valid values.");
+      return;
+    }
+
+    setPostJobLoading(true);
+    try {
+      const response = await api.post("jobs/", {
+        title: jobTitle,
+        description: jobDescription,
+        budget: jobBudget,
+        deadline: jobDeadline,
+      });
+
+      // Add new job to list
+      setJobs((prev) => [response.data, ...prev]);
+
+      // Reset form
+      setJobTitle("");
+      setJobDescription("");
+      setJobBudget(0);
+      setJobDeadline("");
+      setShowPostJobForm(false);
+    } catch (error) {
+      const err = error as { response?: { data?: { message?: string } } };
+      setPostJobError(err.response?.data?.message || "Failed to post job.");
+    } finally {
+      setPostJobLoading(false);
+    }
+  };
+
+  const fetchMyBids = async () => {
+    setMyBidsLoading(true);
+    try {
+      const response = await api.get("bids/");
+      // Handle paginated response format
+      const bidsData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data?.results || response.data?.data || [];
+      setMyBids(bidsData);
+    } catch (error) {
+      console.error("Error fetching my bids:", error);
+      setMyBids([]);
+    } finally {
+      setMyBidsLoading(false);
+    }
+  };
+
+  const fetchTasksForFreelancer = async () => {
+    try {
+      const tasksResponse = await getTasks();
+      if (tasksResponse.success) {
+        setTasks(tasksResponse.data || []);
+      }
+    } catch (error) {
+      console.error("Error refreshing tasks:", error);
+    }
+  };
+
+  const updateTaskStatus = async (taskId: number, status: 'PENDING' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED') => {
+    try {
+      await api.patch(`tasks/${taskId}/`, { status });
+      fetchTasksForFreelancer();
+    } catch (error) {
+      console.error('Failed to update task status:', error);
+    }
+  };
+
+  // Fetch freelancer's bids on mount and poll every 5 seconds
+  useEffect(() => {
+    if (role === 'FREELANCER') {
+      fetchMyBids();
+      fetchTasksForFreelancer();
+      
+      // Set up polling for real-time updates
+      const pollInterval = setInterval(() => {
+        fetchMyBids();
+        fetchTasksForFreelancer();
+      }, 5000);
+      
+      return () => clearInterval(pollInterval);
+    }
   }, [role]);
 
   if (loading) {
@@ -264,7 +413,17 @@ export const DashboardContent = () => {
 
       {role === 'CLIENT' && (
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
-          <h3 className="text-lg font-semibold text-black dark:text-white">My Jobs</h3>
+          <div className="mb-4 flex items-center justify-between">
+            <h3 className="text-lg font-semibold text-black dark:text-white">My Jobs</h3>
+            <button
+              type="button"
+              onClick={() => setShowPostJobForm(true)}
+              className="inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90"
+              style={{ backgroundColor: '#70e000' }}
+            >
+              Post Job
+            </button>
+          </div>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {jobs.length > 0 ? jobs.map((job: Job) => (
               <article
@@ -290,8 +449,11 @@ export const DashboardContent = () => {
                 <p className="mb-4 text-sm text-slate-500 dark:text-gray-300">Description: {job.description.substring(0, 100)}...</p>
 
                 <div className="flex flex-wrap gap-2">
-                  <button className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90" style={{ backgroundColor: '#70e000' }}>
-                    View Details
+                  <button 
+                    onClick={() => handleJobClick(job.id)}
+                    className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90" 
+                    style={{ backgroundColor: '#70e000' }}>
+                    View Bids
                   </button>
                   <button className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800">
                     Edit Job
@@ -301,7 +463,11 @@ export const DashboardContent = () => {
             )) : (
               <div className="col-span-full text-center py-8">
                 <p className="text-gray-500 dark:text-gray-400">No jobs posted yet.</p>
-                <button className="mt-2 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90" style={{ backgroundColor: '#70e000' }}>
+                <button 
+                  type="button"
+                  onClick={() => setShowPostJobForm(true)}
+                  className="mt-2 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90" 
+                  style={{ backgroundColor: '#70e000' }}>
                   Post Your First Job
                 </button>
               </div>
@@ -312,6 +478,49 @@ export const DashboardContent = () => {
 
       {role === 'FREELANCER' && (
         <>
+          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-black dark:text-white">My Bids</h3>
+              <span className="text-sm text-gray-500 dark:text-gray-400">Track your submissions</span>
+            </div>
+
+            <div className="space-y-3">
+              {myBidsLoading ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400">Loading bids...</p>
+              ) : myBids.length > 0 ? myBids.map((bid: Bid) => {
+                const statusClasses =
+                  bid.status === 'PENDING'
+                    ? 'bg-amber-100 text-amber-700'
+                    : bid.status === 'ACCEPTED'
+                    ? 'bg-green-100 text-green-700'
+                    : 'bg-red-100 text-red-700';
+
+                return (
+                  <article
+                    key={bid.id}
+                    className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-slate-800"
+                  >
+                    <div className="flex items-start justify-between gap-4">
+                      <div>
+                        <h4 className="text-base font-semibold text-gray-900 dark:text-white">Job #{bid.job}</h4>
+                        <p className="text-sm text-gray-500 dark:text-gray-300">Amount: KES {bid.amount}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-300 max-w-xs truncate">Proposal: {bid.proposal}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-300">Submitted: {new Date(bid.created_at).toLocaleDateString()}</p>
+                      </div>
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold whitespace-nowrap ${statusClasses}`}>
+                        {bid.status}
+                      </span>
+                    </div>
+                  </article>
+                );
+              }) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">No bids submitted yet.</p>
+                </div>
+              )}
+            </div>
+          </section>
+
           <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
             <div className="mb-4 flex items-center justify-between">
               <h3 className="text-lg font-semibold text-black dark:text-white">My Tasks</h3>
@@ -342,6 +551,35 @@ export const DashboardContent = () => {
                         {task.status}
                       </span>
                     </div>
+                    <div className="mt-4 flex gap-2">
+                      {task.status === 'PENDING' && (
+                        <button
+                          type="button"
+                          onClick={() => updateTaskStatus(task.id, 'IN_PROGRESS')}
+                          className="rounded-lg bg-blue-600 px-3 py-2 text-sm font-medium text-white hover:bg-blue-700"
+                        >
+                          Start
+                        </button>
+                      )}
+                      {task.status === 'IN_PROGRESS' && (
+                        <button
+                          type="button"
+                          onClick={() => updateTaskStatus(task.id, 'COMPLETED')}
+                          className="rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+                        >
+                          Mark Complete
+                        </button>
+                      )}
+                      {task.status !== 'COMPLETED' && task.status !== 'CANCELLED' && (
+                        <button
+                          type="button"
+                          onClick={() => updateTaskStatus(task.id, 'CANCELLED')}
+                          className="rounded-lg border border-red-300 px-3 py-2 text-sm font-medium text-red-700 hover:bg-red-50"
+                        >
+                          Cancel
+                        </button>
+                      )}
+                    </div>
                   </article>
                 );
               }) : (
@@ -352,6 +590,171 @@ export const DashboardContent = () => {
             </div>
           </section>
         </>
+      )}
+
+      {showPostJobForm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-900">
+            <div className="mb-4 flex items-center justify-between">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Post New Job</h3>
+              <button
+                type="button"
+                className="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-300 dark:hover:text-white"
+                onClick={() => setShowPostJobForm(false)}
+              >
+                Close
+              </button>
+            </div>
+
+            <div className="space-y-4">
+              {postJobError && <p className="text-sm text-red-500">{postJobError}</p>}
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Job Title</span>
+                <input
+                  type="text"
+                  className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm outline-none focus:border-blue-500"
+                  value={jobTitle}
+                  onChange={(e) => setJobTitle(e.target.value)}
+                  placeholder="e.g., Build responsive website"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Description</span>
+                <textarea
+                  className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm outline-none focus:border-blue-500"
+                  rows={3}
+                  value={jobDescription}
+                  onChange={(e) => setJobDescription(e.target.value)}
+                  placeholder="Describe the job in detail..."
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Budget (KES)</span>
+                <input
+                  type="number"
+                  className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm outline-none focus:border-blue-500"
+                  value={jobBudget}
+                  onChange={(e) => setJobBudget(Number(e.target.value))}
+                  min={1}
+                  placeholder="e.g., 50000"
+                />
+              </label>
+
+              <label className="block">
+                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">Deadline</span>
+                <input
+                  type="date"
+                  className="mt-1 w-full rounded-lg border border-gray-300 p-2 text-sm outline-none focus:border-blue-500"
+                  value={jobDeadline}
+                  onChange={(e) => setJobDeadline(e.target.value)}
+                />
+              </label>
+
+              <div className="flex justify-end gap-2 pt-4">
+                <button
+                  type="button"
+                  className="rounded-lg border border-gray-300 px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 dark:text-slate-200"
+                  onClick={() => setShowPostJobForm(false)}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  disabled={postJobLoading}
+                  className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50"
+                  onClick={handlePostJob}
+                >
+                  {postJobLoading ? "Posting..." : "Post Job"}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {selectedJobId !== null && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+          <div className="w-full max-w-2xl max-h-96 rounded-2xl bg-white overflow-y-auto shadow-xl dark:bg-slate-900">
+            <div className="sticky top-0 bg-white dark:bg-slate-900 p-6 border-b border-gray-200 dark:border-gray-700">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
+                  Bids for Job #{selectedJobId}
+                </h3>
+                <button
+                  type="button"
+                  className="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-300 dark:hover:text-white"
+                  onClick={() => setSelectedJobId(null)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
+
+            <div className="p-6">
+              {bidsError && <p className="text-sm text-red-500 mb-4">{bidsError}</p>}
+              {bidsLoading ? (
+                <p className="text-sm text-gray-500">Loading bids...</p>
+              ) : bids.length === 0 ? (
+                <p className="text-sm text-gray-500">No bids for this job yet.</p>
+              ) : (
+                <div className="space-y-4">
+                  {bids.map((bid) => (
+                    <div
+                      key={bid.id}
+                      className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-slate-800"
+                    >
+                      <div className="mb-3 flex items-start justify-between">
+                        <div>
+                          <p className="font-medium text-gray-900 dark:text-white">
+                            {bid.freelancer.email}
+                          </p>
+                          <p className="text-sm text-gray-500 dark:text-gray-400">
+                            Bid Amount: KES {bid.amount}
+                          </p>
+                        </div>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                            bid.status === 'PENDING'
+                              ? 'bg-amber-100 text-amber-700'
+                              : bid.status === 'ACCEPTED'
+                              ? 'bg-green-100 text-green-700'
+                              : 'bg-red-100 text-red-700'
+                          }`}
+                        >
+                          {bid.status}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                        {bid.proposal}
+                      </p>
+                      {bid.status === 'PENDING' && (
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+                            onClick={() => handleBidAction(bid.id, 'ACCEPTED')}
+                          >
+                            Accept
+                          </button>
+                          <button
+                            type="button"
+                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-slate-800"
+                            onClick={() => handleBidAction(bid.id, 'REJECTED')}
+                          >
+                            Reject
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
       )}
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">

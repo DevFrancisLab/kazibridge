@@ -25,17 +25,26 @@ const LoginPage = () => {
 
     if (!result.success) {
       setError(result.message || 'Login failed.');
+      console.error('Login failed:', result);
       return;
     }
 
     const token = result.data?.access;
     if (!token) {
       setError('No token received from server.');
+      console.error('No token in response:', result.data);
       return;
     }
     const userRole = result.data?.role as 'CLIENT' | 'FREELANCER' | '';
     const userEmail = result.data?.email || '';
+    
+    console.log('Login successful, calling auth.login with:', { token: token.substring(0, 20) + '...', userRole, userEmail });
+    
     auth.login({ token, role: userRole, email: userEmail });
+
+    // Verify token was stored
+    const storedToken = localStorage.getItem('token');
+    console.log('After auth.login, token in localStorage:', storedToken ? 'present' : 'missing');
 
     // Read role from localStorage for redirect
     const storedRole = userRole;

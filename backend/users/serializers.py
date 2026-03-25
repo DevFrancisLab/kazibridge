@@ -1,7 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from django.db import IntegrityError
-from .models import Job, Task, Earnings, Bid
+from .models import Job, Task, Earnings, Bid, Message
 
 User = get_user_model()
 
@@ -14,13 +14,44 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         min_length=8,
         style={'input_type': 'password'}
     )
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text='Phone number in E.164 format (e.g., +254712345678)'
+    )
     
     class Meta:
         model = User
-        fields = ('email', 'password', 'role')
+        fields = ('email', 'password', 'phone_number', 'role')
         extra_kwargs = {
             'role': {'required': True},
+            'phone_number': {'required': True},
         }
+    
+    def validate_phone_number(self, value):
+        """Validate and normalize phone number to E.164 format."""
+        import re
+        
+        # Remove any non-digit characters except leading +
+        cleaned = re.sub(r'[^\d+]', '', value)
+        
+        # Check if it starts with + or country code
+        if not cleaned.startswith('+'):
+            # Assume it's a Kenyan number if no country code
+            if cleaned.startswith('0'):
+                cleaned = '+254' + cleaned[1:]
+            elif len(cleaned) == 9:
+                # Assume local number without 0
+                cleaned = '+254' + cleaned
+            else:
+                cleaned = '+' + cleaned
+        
+        # Validate format: +[1-3 digits country code][number]
+        if not re.match(r'^\+\d{1,3}\d{6,14}$', cleaned):
+            raise serializers.ValidationError(
+                'Phone number must be in E.164 format (e.g., +254712345678 or +1234567890)'
+            )
+        
+        return cleaned
     
     def validate_email(self, value):
         """Validate that email is unique."""
@@ -29,12 +60,14 @@ class UserRegistrationSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
-        """Create user with hashed password."""
+        """Create user with hashed password and normalized phone number."""
         password = validated_data.pop('password')
+        phone_number = validated_data.pop('phone_number', '')
 
         # Ensure username is set for AbstractUser unique username constraint.
         validated_data['username'] = validated_data.get('email', '')
         validated_data.setdefault('first_name', '')
+        validated_data['phone_number'] = phone_number
 
         user = User(**validated_data)
         user.set_password(password)
@@ -50,13 +83,44 @@ class RegisterSerializer(serializers.ModelSerializer):
         min_length=8,
         style={'input_type': 'password'}
     )
+    phone_number = serializers.CharField(
+        max_length=20,
+        help_text='Phone number in E.164 format (e.g., +254712345678)'
+    )
     
     class Meta:
         model = User
-        fields = ('email', 'password', 'role')
+        fields = ('email', 'password', 'phone_number', 'role')
         extra_kwargs = {
             'role': {'required': True},
+            'phone_number': {'required': True},
         }
+    
+    def validate_phone_number(self, value):
+        """Validate and normalize phone number to E.164 format."""
+        import re
+        
+        # Remove any non-digit characters except leading +
+        cleaned = re.sub(r'[^\d+]', '', value)
+        
+        # Check if it starts with + or country code
+        if not cleaned.startswith('+'):
+            # Assume it's a Kenyan number if no country code
+            if cleaned.startswith('0'):
+                cleaned = '+254' + cleaned[1:]
+            elif len(cleaned) == 9:
+                # Assume local number without 0
+                cleaned = '+254' + cleaned
+            else:
+                cleaned = '+' + cleaned
+        
+        # Validate format: +[1-3 digits country code][number]
+        if not re.match(r'^\+\d{1,3}\d{6,14}$', cleaned):
+            raise serializers.ValidationError(
+                'Phone number must be in E.164 format (e.g., +254712345678 or +1234567890)'
+            )
+        
+        return cleaned
     
     def validate_email(self, value):
         """Validate that email is unique."""
@@ -65,12 +129,14 @@ class RegisterSerializer(serializers.ModelSerializer):
         return value
     
     def create(self, validated_data):
-        """Create user with hashed password."""
+        """Create user with hashed password and normalized phone number."""
         password = validated_data.pop('password')
+        phone_number = validated_data.pop('phone_number', '')
 
         # Ensure username is set for AbstractUser unique username constraint.
         validated_data['username'] = validated_data.get('email', '')
         validated_data.setdefault('first_name', '')
+        validated_data['phone_number'] = phone_number
 
         user = User(**validated_data)
         user.set_password(password)
@@ -119,18 +185,43 @@ class UserSerializer(serializers.ModelSerializer):
     
     class Meta:
         model = User
-        fields = ('id', 'email', 'first_name', 'last_name', 'role', 'is_active', 'created_at')
+        fields = ('id', 'email', 'phone_number', 'first_name', 'last_name', 'role', 'skills', 'is_active', 'created_at')
         read_only_fields = ('id', 'created_at')
+
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    """Serializer for updating user profile (including skills)."""
+    
+    class Meta:
+        model = User
+        fields = ('first_name', 'last_name', 'phone_number', 'skills')
+        extra_kwargs = {
+            'phone_number': {'required': False},
+            'skills': {'required': False},
+        }
 
 
 class JobSerializer(serializers.ModelSerializer):
     """Serializer for Job model."""
     created_by = UserSerializer(read_only=True)
+    freelancer = serializers.SerializerMethodField()
     
     class Meta:
         model = Job
-        fields = ('id', 'title', 'description', 'budget', 'deadline', 'created_by', 'status', 'created_at')
-        read_only_fields = ('id', 'created_at', 'created_by')
+        fields = ('id', 'title', 'description', 'budget', 'deadline', 'created_by', 'status', 'created_at', 'freelancer')
+        read_only_fields = ('id', 'created_at', 'created_by', 'freelancer')
+    
+    def get_freelancer(self, obj):
+        """Get the freelancer for jobs in progress."""
+        if obj.status == 'IN_PROGRESS':
+            accepted_bid = obj.bids.filter(status='ACCEPTED').first()
+            if accepted_bid:
+                return {
+                    'id': accepted_bid.freelancer.id,
+                    'email': accepted_bid.freelancer.email,
+                    'role': accepted_bid.freelancer.role
+                }
+        return None
 
 
 class JobCreateSerializer(serializers.ModelSerializer):
@@ -218,3 +309,67 @@ class BidUpdateSerializer(serializers.ModelSerializer):
         if value not in ['ACCEPTED', 'REJECTED']:
             raise serializers.ValidationError("Status must be ACCEPTED or REJECTED.")
         return value
+
+
+class MessageSerializer(serializers.ModelSerializer):
+    """Serializer for messages between clients and freelancers."""
+    
+    sender_email = serializers.CharField(source='sender.email', read_only=True)
+    recipient_email = serializers.CharField(source='recipient.email', read_only=True)
+    
+    class Meta:
+        model = Message
+        fields = ('id', 'job', 'sender', 'recipient', 'content', 'created_at', 'is_read', 'sender_email', 'recipient_email')
+        read_only_fields = ('id', 'created_at', 'sender_email', 'recipient_email')
+    
+    def create(self, validated_data):
+        """Set sender to current user."""
+        request = self.context.get('request')
+        if request and hasattr(request, 'user'):
+            validated_data['sender'] = request.user
+        return super().create(validated_data)
+
+
+class MessageCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating new messages."""
+    
+    class Meta:
+        model = Message
+        fields = ('job', 'recipient', 'content')
+    
+    def validate(self, data):
+        """Validate that sender and recipient are different and have valid relationship."""
+        request = self.context.get('request')
+        if not request or not hasattr(request, 'user'):
+            raise serializers.ValidationError("Authentication required.")
+        
+        sender = request.user
+        recipient = data['recipient']
+        job = data['job']
+        
+        # Check if sender and recipient are different
+        if sender == recipient:
+            raise serializers.ValidationError("Cannot send message to yourself.")
+        
+        # Check if both users are involved with the job
+        if sender.role == 'CLIENT' and job.created_by != sender:
+            raise serializers.ValidationError("You can only send messages for your own jobs.")
+        
+        if sender.role == 'FREELANCER':
+            # Check if freelancer has a bid on this job or is assigned to a task
+            has_bid = Bid.objects.filter(job=job, freelancer=sender).exists()
+            has_task = Task.objects.filter(job=job, freelancer=sender).exists()
+            if not has_bid and not has_task:
+                raise serializers.ValidationError("You can only send messages for jobs you've bid on or are assigned to.")
+        
+        # Check if recipient is the other party in the job
+        if recipient.role == 'CLIENT' and job.created_by != recipient:
+            raise serializers.ValidationError("Invalid recipient for this job.")
+        
+        if recipient.role == 'FREELANCER':
+            has_bid = Bid.objects.filter(job=job, freelancer=recipient).exists()
+            has_task = Task.objects.filter(job=job, freelancer=recipient).exists()
+            if not has_bid and not has_task:
+                raise serializers.ValidationError("Invalid recipient for this job.")
+        
+        return data

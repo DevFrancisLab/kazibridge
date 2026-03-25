@@ -21,6 +21,7 @@ import FindJobsPage from "./pages/FindJobsPage";
 import TasksPage from "./pages/TasksPage";
 import EarningsPage from "./pages/EarningsPage";
 import ProfilePage from "./pages/ProfilePage";
+import FreelancersPage from "./pages/FreelancersPage";
 
 const queryClient = new QueryClient();
 
@@ -73,6 +74,14 @@ const App = () => (
               element={
                 <ProtectedRoute allowedRole="CLIENT">
                   <JobDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/freelancers"
+              element={
+                <ProtectedRoute allowedRole="CLIENT">
+                  <FreelancersPage />
                 </ProtectedRoute>
               }
             />

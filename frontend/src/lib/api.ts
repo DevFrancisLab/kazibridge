@@ -8,6 +8,15 @@ const api = axios.create({
   withCredentials: true,
 });
 
+// Create a separate instance for auth requests (login/register) that doesn't include auth headers
+export const authApi = axios.create({
+  baseURL: 'http://127.0.0.1:8000/api/',
+  headers: {
+    'Content-Type': 'application/json',
+  },
+  withCredentials: true,
+});
+
 // Add request interceptor to include auth token
 api.interceptors.request.use(
   (config) => {

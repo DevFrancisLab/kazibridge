@@ -1,8 +1,9 @@
-import api from './api';
+import api, { authApi } from './api';
 
 export interface RegisterPayload {
   email: string;
   password: string;
+  phone_number?: string;
   role: 'CLIENT' | 'FREELANCER';
 }
 
@@ -15,9 +16,10 @@ export interface ApiResponse<T = any> {
 
 export async function registerUser(payload: RegisterPayload): Promise<ApiResponse> {
   try {
-    const response = await api.post('/register/', {
+    const response = await authApi.post('/register/', {
       email: payload.email,
       password: payload.password,
+      phone_number: payload.phone_number,
       role: payload.role,
     });
 
@@ -44,9 +46,10 @@ export async function registerUser(payload: RegisterPayload): Promise<ApiRespons
 
 export async function signup(payload: RegisterPayload): Promise<ApiResponse> {
   try {
-    const response = await api.post('/register/', {
+    const response = await authApi.post('/register/', {
       email: payload.email,
       password: payload.password,
+      phone_number: payload.phone_number,
       role: payload.role,
     });
 
@@ -78,7 +81,7 @@ export interface LoginPayload {
 
 export async function loginUser(payload: LoginPayload): Promise<ApiResponse> {
   try {
-    const response = await api.post('/login/', {
+    const response = await authApi.post('/login/', {
       email: payload.email,
       password: payload.password,
     });
@@ -141,6 +144,29 @@ export async function getJobs(): Promise<ApiResponse> {
     return {
       success: false,
       message: error.response?.data?.message || 'Failed to fetch jobs.',
+    };
+  }
+}
+
+export async function getFreelancers(): Promise<ApiResponse> {
+  try {
+    const response = await api.get('/freelancers/');
+    const freelancers = Array.isArray(response.data)
+      ? response.data
+      : Array.isArray(response.data?.results)
+      ? response.data.results
+      : Array.isArray(response.data?.data)
+      ? response.data.data
+      : [];
+
+    return {
+      success: true,
+      data: freelancers,
+    };
+  } catch (error: any) {
+    return {
+      success: false,
+      message: error.response?.data?.message || 'Failed to fetch freelancers.',
     };
   }
 }

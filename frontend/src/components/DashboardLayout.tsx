@@ -72,6 +72,18 @@ interface Bid {
   created_at: string;
 }
 
+interface Message {
+  id: number;
+  job: number;
+  sender: number;
+  recipient: number;
+  content: string;
+  created_at: string;
+  is_read: boolean;
+  sender_email: string;
+  recipient_email: string;
+}
+
 const navItems = [
   { label: "Dashboard", icon: Home, to: "/dashboard" },
   { label: "Find Jobs", icon: Briefcase, to: "/jobs" },
@@ -178,7 +190,6 @@ export const DashboardContent = () => {
   const [tasks, setTasks] = useState<Task[]>([]);
   const [earnings, setEarnings] = useState<Earnings[]>([]);
   const [loading, setLoading] = useState(true);
-  const [selectedJobId, setSelectedJobId] = useState<number | null>(null);
   const [bids, setBids] = useState<Bid[]>([]);
   const [bidsLoading, setBidsLoading] = useState(false);
   const [bidsError, setBidsError] = useState<string | null>(null);
@@ -191,18 +202,31 @@ export const DashboardContent = () => {
   const [postJobError, setPostJobError] = useState<string | null>(null);
   const [myBids, setMyBids] = useState<Bid[]>([]);
   const [myBidsLoading, setMyBidsLoading] = useState(false);
+  const [selectedJobDetails, setSelectedJobDetails] = useState<Job | null>(null);
+  const [jobMessages, setJobMessages] = useState<Message[]>([]);
+  const [messagesLoading, setMessagesLoading] = useState(false);
+  const [newMessage, setNewMessage] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
 
   console.log("DashboardContent rendered, role:", role);
+
+  const fetchClientJobs = async () => {
+    try {
+      const jobsResponse = await getJobs();
+      if (jobsResponse.success) {
+        setJobs(jobsResponse.data || []);
+      }
+    } catch (error) {
+      console.error("Error refreshing client jobs:", error);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
       setLoading(true);
       try {
         if (role === 'CLIENT') {
-          const jobsResponse = await getJobs();
-          if (jobsResponse.success) {
-            setJobs(jobsResponse.data || []);
-          }
+          await fetchClientJobs();
         } else if (role === 'FREELANCER') {
           const [tasksResponse, earningsResponse] = await Promise.all([
             getTasks(),
@@ -223,6 +247,24 @@ export const DashboardContent = () => {
     };
 
     fetchData();
+  }, [role]);
+
+  // Set up polling for real-time updates
+  useEffect(() => {
+    if (role === 'CLIENT') {
+      const pollInterval = setInterval(fetchClientJobs, 5000);
+      return () => clearInterval(pollInterval);
+    } else if (role === 'FREELANCER') {
+      fetchMyBids();
+      fetchTasksForFreelancer();
+      
+      const pollInterval = setInterval(() => {
+        fetchMyBids();
+        fetchTasksForFreelancer();
+      }, 5000);
+      
+      return () => clearInterval(pollInterval);
+    }
   }, [role]);
 
   const fetchBids = async (jobId: number) => {
@@ -257,6 +299,53 @@ export const DashboardContent = () => {
     }
   };
 
+  const handleViewJobDetails = async (job: Job) => {
+    setSelectedJobDetails(job);
+    if (job.status === 'OPEN') {
+      await fetchBids(job.id);
+    } else {
+      await fetchJobMessages(job.id);
+    }
+  };
+
+  const fetchJobMessages = async (jobId: number) => {
+    setMessagesLoading(true);
+    try {
+      const response = await api.get(`jobs/${jobId}/messages/`);
+      const messagesData = Array.isArray(response.data) 
+        ? response.data 
+        : response.data?.results || response.data?.data || [];
+      setJobMessages(messagesData);
+    } catch (error) {
+      console.error("Error fetching messages:", error);
+      setJobMessages([]);
+    } finally {
+      setMessagesLoading(false);
+    }
+  };
+
+  const handleSendMessage = async () => {
+    if (!newMessage.trim() || !selectedJobDetails) return;
+
+    setSendingMessage(true);
+    try {
+      const freelancer = selectedJobDetails.freelancer;
+      if (!freelancer) return;
+
+      await api.post(`jobs/${selectedJobDetails.id}/messages/`, {
+        recipient: freelancer.id,
+        content: newMessage.trim(),
+      });
+
+      setNewMessage("");
+      await fetchJobMessages(selectedJobDetails.id);
+    } catch (error) {
+      console.error("Error sending message:", error);
+    } finally {
+      setSendingMessage(false);
+    }
+  };
+
   const handlePostJob = async () => {
     setPostJobError(null);
 
@@ -274,8 +363,8 @@ export const DashboardContent = () => {
         deadline: jobDeadline,
       });
 
-      // Add new job to list
-      setJobs((prev) => [response.data, ...prev]);
+      // Refresh jobs list to ensure consistency
+      await fetchClientJobs();
 
       // Reset form
       setJobTitle("");
@@ -327,22 +416,6 @@ export const DashboardContent = () => {
       console.error('Failed to update task status:', error);
     }
   };
-
-  // Fetch freelancer's bids on mount and poll every 5 seconds
-  useEffect(() => {
-    if (role === 'FREELANCER') {
-      fetchMyBids();
-      fetchTasksForFreelancer();
-      
-      // Set up polling for real-time updates
-      const pollInterval = setInterval(() => {
-        fetchMyBids();
-        fetchTasksForFreelancer();
-      }, 5000);
-      
-      return () => clearInterval(pollInterval);
-    }
-  }, [role]);
 
   if (loading) {
     return (
@@ -450,10 +523,10 @@ export const DashboardContent = () => {
 
                 <div className="flex flex-wrap gap-2">
                   <button 
-                    onClick={() => handleJobClick(job.id)}
+                    onClick={() => handleViewJobDetails(job)}
                     className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90" 
                     style={{ backgroundColor: '#70e000' }}>
-                    View Bids
+                    View Details
                   </button>
                   <button className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800">
                     Edit Job
@@ -675,81 +748,166 @@ export const DashboardContent = () => {
         </div>
       )}
 
-      {selectedJobId !== null && (
+      {selectedJobDetails !== null && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
-          <div className="w-full max-w-2xl max-h-96 rounded-2xl bg-white overflow-y-auto shadow-xl dark:bg-slate-900">
+          <div className="w-full max-w-4xl max-h-[90vh] rounded-2xl bg-white overflow-y-auto shadow-xl dark:bg-slate-900">
             <div className="sticky top-0 bg-white dark:bg-slate-900 p-6 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center justify-between">
                 <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-                  Bids for Job #{selectedJobId}
+                  Job Details: {selectedJobDetails.title}
                 </h3>
                 <button
                   type="button"
                   className="text-sm text-gray-500 hover:text-gray-700 dark:text-slate-300 dark:hover:text-white"
-                  onClick={() => setSelectedJobId(null)}
+                  onClick={() => setSelectedJobDetails(null)}
                 >
                   Close
                 </button>
               </div>
             </div>
 
-            <div className="p-6">
-              {bidsError && <p className="text-sm text-red-500 mb-4">{bidsError}</p>}
-              {bidsLoading ? (
-                <p className="text-sm text-gray-500">Loading bids...</p>
-              ) : bids.length === 0 ? (
-                <p className="text-sm text-gray-500">No bids for this job yet.</p>
-              ) : (
-                <div className="space-y-4">
-                  {bids.map((bid) => (
-                    <div
-                      key={bid.id}
-                      className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-slate-800"
-                    >
-                      <div className="mb-3 flex items-start justify-between">
-                        <div>
-                          <p className="font-medium text-gray-900 dark:text-white">
-                            {bid.freelancer.email}
+            <div className="p-6 space-y-6">
+              {/* Job Card Style Information */}
+              <div className="bg-gray-50 dark:bg-slate-800 p-4 rounded-lg">
+                <div className="mb-3 flex items-center justify-between">
+                  <h4 className="text-base font-semibold text-slate-900 dark:text-white">{selectedJobDetails.title}</h4>
+                  <span
+                    className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                      selectedJobDetails.status === "OPEN"
+                        ? "bg-sky-100 text-sky-700"
+                        : selectedJobDetails.status === "IN_PROGRESS"
+                        ? "bg-amber-100 text-amber-700"
+                        : "bg-slate-100 text-slate-700"
+                    }`}
+                  >
+                    {selectedJobDetails.status}
+                  </span>
+                </div>
+
+                <p className="mb-2 text-sm text-slate-500 dark:text-gray-300">Budget: KES {selectedJobDetails.budget}</p>
+                <p className="mb-4 text-sm text-slate-500 dark:text-gray-300">Description: {selectedJobDetails.description}</p>
+                <p className="text-sm text-slate-500 dark:text-gray-300">Created: {new Date(selectedJobDetails.created_at).toLocaleDateString()}</p>
+                {selectedJobDetails.freelancer && (
+                  <p className="text-sm text-slate-500 dark:text-gray-300">Freelancer: {selectedJobDetails.freelancer.email}</p>
+                )}
+              </div>
+
+              {/* Bids or Messages Section */}
+              {selectedJobDetails.status === 'OPEN' ? (
+                <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Bids for this Job</h4>
+                  
+                  {/* Bids List */}
+                  <div className="space-y-3 max-h-60 overflow-y-auto">
+                    {bidsLoading ? (
+                      <p className="text-sm text-gray-500">Loading bids...</p>
+                    ) : bids.length === 0 ? (
+                      <p className="text-sm text-gray-500">No bids yet.</p>
+                    ) : (
+                      bids.map((bid) => (
+                        <div
+                          key={bid.id}
+                          className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-slate-800"
+                        >
+                          <div className="mb-3 flex items-start justify-between">
+                            <div>
+                              <p className="font-medium text-gray-900 dark:text-white">
+                                {bid.freelancer.email}
+                              </p>
+                              <p className="text-sm text-gray-500 dark:text-gray-400">
+                                Bid Amount: KES {bid.amount}
+                              </p>
+                            </div>
+                            <span
+                              className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                bid.status === 'PENDING'
+                                  ? 'bg-amber-100 text-amber-700'
+                                  : bid.status === 'ACCEPTED'
+                                  ? 'bg-green-100 text-green-700'
+                                  : 'bg-red-100 text-red-700'
+                              }`}
+                            >
+                              {bid.status}
+                            </span>
+                          </div>
+                          <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
+                            {bid.proposal}
                           </p>
-                          <p className="text-sm text-gray-500 dark:text-gray-400">
-                            Bid Amount: KES {bid.amount}
-                          </p>
+                          {bid.status === 'PENDING' && (
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
+                                onClick={() => handleBidAction(bid.id, 'ACCEPTED')}
+                              >
+                                Accept
+                              </button>
+                              <button
+                                type="button"
+                                className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-slate-800"
+                                onClick={() => handleBidAction(bid.id, 'REJECTED')}
+                              >
+                                Reject
+                              </button>
+                            </div>
+                          )}
                         </div>
-                        <span
-                          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                            bid.status === 'PENDING'
-                              ? 'bg-amber-100 text-amber-700'
-                              : bid.status === 'ACCEPTED'
-                              ? 'bg-green-100 text-green-700'
-                              : 'bg-red-100 text-red-700'
+                      ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="bg-white dark:bg-slate-800 border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+                  <h4 className="text-md font-semibold text-gray-900 dark:text-white mb-4">Messages with Freelancer</h4>
+                  
+                  {/* Messages List */}
+                  <div className="space-y-3 max-h-60 overflow-y-auto mb-4">
+                    {messagesLoading ? (
+                      <p className="text-sm text-gray-500">Loading messages...</p>
+                    ) : jobMessages.length === 0 ? (
+                      <p className="text-sm text-gray-500">No messages yet. Start the conversation!</p>
+                    ) : (
+                      jobMessages.map((message) => (
+                        <div
+                          key={message.id}
+                          className={`p-3 rounded-lg ${
+                            message.sender_email === localStorage.getItem('email')
+                              ? 'bg-blue-100 dark:bg-blue-900 ml-8'
+                              : 'bg-gray-100 dark:bg-gray-700 mr-8'
                           }`}
                         >
-                          {bid.status}
-                        </span>
-                      </div>
-                      <p className="text-sm text-gray-700 dark:text-gray-300 mb-4">
-                        {bid.proposal}
-                      </p>
-                      {bid.status === 'PENDING' && (
-                        <div className="flex gap-2">
-                          <button
-                            type="button"
-                            className="flex-1 rounded-lg bg-green-600 px-3 py-2 text-sm font-medium text-white hover:bg-green-700"
-                            onClick={() => handleBidAction(bid.id, 'ACCEPTED')}
-                          >
-                            Accept
-                          </button>
-                          <button
-                            type="button"
-                            className="flex-1 rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-600 dark:text-gray-200 dark:hover:bg-slate-800"
-                            onClick={() => handleBidAction(bid.id, 'REJECTED')}
-                          >
-                            Reject
-                          </button>
+                          <div className="flex justify-between items-start mb-1">
+                            <p className="text-xs font-medium text-gray-600 dark:text-gray-300">
+                              {message.sender_email}
+                            </p>
+                            <p className="text-xs text-gray-500 dark:text-gray-400">
+                              {new Date(message.created_at).toLocaleString()}
+                            </p>
+                          </div>
+                          <p className="text-sm text-gray-800 dark:text-gray-200">{message.content}</p>
                         </div>
-                      )}
-                    </div>
-                  ))}
+                      ))
+                    )}
+                  </div>
+
+                  {/* Send Message Input */}
+                  <div className="flex gap-2">
+                    <input
+                      type="text"
+                      value={newMessage}
+                      onChange={(e) => setNewMessage(e.target.value)}
+                      placeholder="Type your message..."
+                      className="flex-1 rounded-lg border border-gray-300 p-2 text-sm outline-none focus:border-blue-500 dark:border-gray-600 dark:bg-slate-700 dark:text-white"
+                      onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
+                    />
+                    <button
+                      onClick={handleSendMessage}
+                      disabled={sendingMessage || !newMessage.trim()}
+                      className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {sendingMessage ? 'Sending...' : 'Send'}
+                    </button>
+                  </div>
                 </div>
               )}
             </div>

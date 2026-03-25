@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 
 const SignupPage = () => {
   const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [role, setRole] = useState<'CLIENT' | 'FREELANCER'>('CLIENT');
@@ -22,7 +23,7 @@ const SignupPage = () => {
     setLoading(true);
 
     // Basic validation
-    if (!email || !password || !confirmPassword || !role) {
+    if (!email || !password || !confirmPassword || !phoneNumber || !role) {
       setError('All fields are required.');
       setLoading(false);
       return;
@@ -50,7 +51,7 @@ const SignupPage = () => {
       return;
     }
 
-    const result = await signup({ email, password, role });
+    const result = await signup({ email, password, phone_number: phoneNumber, role });
     setLoading(false);
 
     if (!result.success) {
@@ -139,6 +140,24 @@ const SignupPage = () => {
               placeholder="Enter your email"
             />
             {fieldErrors.email && <p className="mt-1 text-sm text-red-600">{fieldErrors.email}</p>}
+          </div>
+
+          <div className="mb-4">
+            <label className="mb-1 block text-sm font-medium text-slate-700" htmlFor="phoneNumber">
+              Phone Number
+            </label>
+            <input
+              id="phoneNumber"
+              type="tel"
+              value={phoneNumber}
+              onChange={(e) => setPhoneNumber(e.target.value)}
+              required
+              className={`w-full rounded-md border px-3 py-2 focus:outline-none ${
+                fieldErrors.phone_number ? 'border-red-500 focus:border-red-500' : 'border-gray-300 focus:border-blue-500'
+              }`}
+              placeholder="Enter your phone number"
+            />
+            {fieldErrors.phone_number && <p className="mt-1 text-sm text-red-600">{fieldErrors.phone_number}</p>}
           </div>
 
           <div className="mb-4">

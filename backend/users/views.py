@@ -4,7 +4,9 @@ from rest_framework.response import Response
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from django.contrib.auth import get_user_model, logout
 from rest_framework_simplejwt.tokens import RefreshToken
-from .serializers import RegisterSerializer, LoginSerializer, UserSerializer
+from rest_framework import generics
+from .serializers import RegisterSerializer, LoginSerializer, UserSerializer, JobSerializer, JobCreateSerializer, TaskSerializer, EarningsSerializer
+from .models import Job, Task, Earnings
 
 User = get_user_model()
 
@@ -53,13 +55,10 @@ class LoginView(APIView):
             user = serializer.validated_data['user']
             refresh = RefreshToken.for_user(user)
             return Response({
-                'success': True,
-                'message': 'Login successful.',
-                'data': UserSerializer(user).data,
-                'tokens': {
-                    'access': str(refresh.access_token),
-                    'refresh': str(refresh),
-                }
+                'access': str(refresh.access_token),
+                'refresh': str(refresh),
+                'email': user.email,
+                'role': user.role,
             }, status=status.HTTP_200_OK)
         
         return Response({
@@ -96,3 +95,56 @@ class MeView(APIView):
             'success': True,
             'data': serializer.data,
         }, status=status.HTTP_200_OK)
+
+
+class JobListCreateView(generics.ListCreateAPIView):
+    """
+    Jobs endpoint.
+    GET: List jobs (filtered by user role)
+    POST: Create new job (clients only)
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = JobSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'CLIENT':
+            return Job.objects.filter(client=user)
+        elif user.role == 'FREELANCER':
+            return Job.objects.filter(status='OPEN')
+        return Job.objects.none()
+    
+    def get_serializer_class(self):
+        if self.request.method == 'POST':
+            return JobCreateSerializer
+        return JobSerializer
+
+
+class TaskListView(generics.ListAPIView):
+    """
+    Tasks endpoint.
+    GET: List tasks for authenticated freelancer
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = TaskSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'FREELANCER':
+            return Task.objects.filter(freelancer=user)
+        return Task.objects.none()
+
+
+class EarningsListView(generics.ListAPIView):
+    """
+    Earnings endpoint.
+    GET: List earnings for authenticated freelancer
+    """
+    permission_classes = [IsAuthenticated]
+    serializer_class = EarningsSerializer
+    
+    def get_queryset(self):
+        user = self.request.user
+        if user.role == 'FREELANCER':
+            return Earnings.objects.filter(freelancer=user)
+        return Earnings.objects.none()

@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { loginUser } from '@/lib/auth';
 import { Button } from '@/components/ui/button';
@@ -10,6 +11,7 @@ const LoginPage = () => {
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const location = useLocation();
+  const auth = useAuth();
 
   const successMessage = location.state?.message;
 
@@ -26,26 +28,22 @@ const LoginPage = () => {
       return;
     }
 
-    const token = result.data?.tokens?.access;
+    const token = result.data?.access;
     if (!token) {
       setError('No token received from server.');
       return;
     }
+    const userRole = result.data?.role as 'CLIENT' | 'FREELANCER' | '';
+    const userEmail = result.data?.email || '';
+    auth.login({ token, role: userRole, email: userEmail });
 
-    localStorage.setItem('accessToken', token);
-    localStorage.setItem('refreshToken', result.data?.tokens?.refresh ?? '');
-    const userRole = result.data?.data?.role;
-    if (userRole) {
-      localStorage.setItem('role', userRole);
-    } else {
-      localStorage.removeItem('role');
-    }
-
-    if (userRole === 'CLIENT') {
+    // Read role from localStorage for redirect
+    const storedRole = userRole;
+    if (storedRole === 'CLIENT') {
       navigate('/client-dashboard');
       return;
     }
-    if (userRole === 'FREELANCER') {
+    if (storedRole === 'FREELANCER') {
       navigate('/freelancer-dashboard');
       return;
     }

@@ -1,6 +1,7 @@
 from rest_framework import serializers
 from django.contrib.auth import get_user_model, authenticate
 from django.db import IntegrityError
+from .models import Job, Task, Earnings
 
 User = get_user_model()
 
@@ -120,3 +121,52 @@ class UserSerializer(serializers.ModelSerializer):
         model = User
         fields = ('id', 'email', 'first_name', 'last_name', 'role', 'is_active', 'created_at')
         read_only_fields = ('id', 'created_at')
+
+
+class JobSerializer(serializers.ModelSerializer):
+    """Serializer for Job model."""
+    
+    client = UserSerializer(read_only=True)
+    freelancer = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Job
+        fields = ('id', 'title', 'description', 'budget', 'client', 'freelancer', 'status', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+
+class JobCreateSerializer(serializers.ModelSerializer):
+    """Serializer for creating jobs."""
+    
+    class Meta:
+        model = Job
+        fields = ('title', 'description', 'budget')
+    
+    def create(self, validated_data):
+        """Create job with client set to current user."""
+        validated_data['client'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class TaskSerializer(serializers.ModelSerializer):
+    """Serializer for Task model."""
+    
+    job = JobSerializer(read_only=True)
+    freelancer = UserSerializer(read_only=True)
+    
+    class Meta:
+        model = Task
+        fields = ('id', 'title', 'description', 'job', 'freelancer', 'status', 'created_at', 'updated_at')
+        read_only_fields = ('id', 'created_at', 'updated_at')
+
+
+class EarningsSerializer(serializers.ModelSerializer):
+    """Serializer for Earnings model."""
+    
+    freelancer = UserSerializer(read_only=True)
+    job = JobSerializer(read_only=True)
+    
+    class Meta:
+        model = Earnings
+        fields = ('id', 'freelancer', 'job', 'amount', 'earned_at')
+        read_only_fields = ('id', 'earned_at')

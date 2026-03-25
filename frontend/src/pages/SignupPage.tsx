@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { signup, loginUser } from '@/lib/auth';
+import { useAuth } from '@/context/AuthContext';
 import { Button } from '@/components/ui/button';
 
 const SignupPage = () => {
@@ -12,6 +13,7 @@ const SignupPage = () => {
   const [loading, setLoading] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<{[key: string]: string}>({});
   const navigate = useNavigate();
+  const auth = useAuth();
 
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -80,17 +82,21 @@ const SignupPage = () => {
     
     if (loginResult.success) {
       // Store tokens in localStorage
-      const token = loginResult.data?.tokens?.access;
+      const token = loginResult.data?.access;
       if (token) {
-        localStorage.setItem('accessToken', token);
-        localStorage.setItem('refreshToken', loginResult.data?.tokens?.refresh ?? '');
-        const loginRole = loginResult.data?.data?.role ?? role;
-        if (loginRole) {
-          localStorage.setItem('role', loginRole);
-        }
+        const loginRole = (loginResult.data?.role ?? role) as 'CLIENT' | 'FREELANCER' | '';
+        const loginEmail = loginResult.data?.email ?? '';
+        auth.login({ token, role: loginRole, email: loginEmail });
         
-        // Redirect to dashboard
-        navigate('/dashboard');
+        // Read role from context for redirect
+        const storedRole = auth.role;
+        if (storedRole === 'CLIENT') {
+          navigate('/client-dashboard');
+        } else if (storedRole === 'FREELANCER') {
+          navigate('/freelancer-dashboard');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
         // Fallback: redirect to login if no token received
         navigate('/login', { 

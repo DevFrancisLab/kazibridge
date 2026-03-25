@@ -1,4 +1,5 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { AuthProvider } from "./context/AuthContext";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
@@ -16,10 +17,15 @@ import JobsPage from "./pages/JobsPage";
 import JobDetailsPage from "./pages/JobDetailsPage";
 import PaymentsPage from "./pages/PaymentsPage";
 import MessagesPage from "./pages/MessagesPage";
+import FindJobsPage from "./pages/FindJobsPage";
+import TasksPage from "./pages/TasksPage";
+import EarningsPage from "./pages/EarningsPage";
+import ProfilePage from "./pages/ProfilePage";
 
 const queryClient = new QueryClient();
 
 const App = () => (
+  <AuthProvider>
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <Toaster />
@@ -53,10 +59,72 @@ const App = () => (
                 </ProtectedRoute>
               }
             />
-            <Route path="/jobs" element={<JobsPage />} />
-            <Route path="/jobs/:id" element={<JobDetailsPage />} />
-            <Route path="/payments" element={<PaymentsPage />} />
-            <Route path="/messages" element={<MessagesPage />} />
+            {/* Client-only routes */}
+            <Route
+              path="/jobs"
+              element={
+                <ProtectedRoute allowedRole="CLIENT">
+                  <JobsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/jobs/:id"
+              element={
+                <ProtectedRoute allowedRole="CLIENT">
+                  <JobDetailsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/payments"
+              element={
+                <ProtectedRoute allowedRole="CLIENT">
+                  <PaymentsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/messages"
+              element={
+                <ProtectedRoute allowedRole="CLIENT">
+                  <MessagesPage />
+                </ProtectedRoute>
+              }
+            />
+            {/* Freelancer-only routes */}
+            <Route
+              path="/find-jobs"
+              element={
+                <ProtectedRoute allowedRole="FREELANCER">
+                  <FindJobsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute allowedRole="FREELANCER">
+                  <TasksPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/earnings"
+              element={
+                <ProtectedRoute allowedRole="FREELANCER">
+                  <EarningsPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/profile"
+              element={
+                <ProtectedRoute allowedRole="FREELANCER">
+                  <ProfilePage />
+                </ProtectedRoute>
+              }
+            />
           </Route>
           {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
           <Route path="*" element={<NotFound />} />
@@ -64,6 +132,7 @@ const App = () => (
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
+  </AuthProvider>
 );
 
 export default App;

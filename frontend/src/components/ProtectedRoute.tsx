@@ -1,9 +1,10 @@
 import { Navigate, useLocation } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
-const isAuthenticated = () => {
-  const token = localStorage.getItem('accessToken');
-  return !!token;
-};
+// const isAuthenticated = () => {
+//   const token = localStorage.getItem('token');
+//   return !!token;
+// };
 
 interface ProtectedRouteProps {
   children: JSX.Element;
@@ -11,11 +12,12 @@ interface ProtectedRouteProps {
 }
 
 const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
-  if (!isAuthenticated()) {
+  const auth = useAuth();
+  if (!auth.isAuthenticated) {
     return <Navigate to="/login" replace />;
   }
 
-  const role = localStorage.getItem('role');
+  const role = auth.role || (localStorage.getItem('role') as 'CLIENT' | 'FREELANCER' | null);
   if (!role) {
     return <Navigate to="/login" replace />;
   }
@@ -23,12 +25,18 @@ const ProtectedRoute = ({ children, allowedRole }: ProtectedRouteProps) => {
   const location = useLocation();
   const pathname = location.pathname;
 
-  // Global guard: if user tries to visit the other role's dashboard, redirect to correct dashboard.
-  if (pathname.startsWith('/client-dashboard') && role !== 'CLIENT') {
-    return <Navigate to="/freelancer-dashboard" replace />;
+  // Exact role match for each dashboard route
+  if (pathname.startsWith('/client-dashboard')) {
+    if (role !== 'CLIENT') {
+      return <Navigate to="/freelancer-dashboard" replace />;
+    }
+    return children;
   }
-  if (pathname.startsWith('/freelancer-dashboard') && role !== 'FREELANCER') {
-    return <Navigate to="/client-dashboard" replace />;
+  if (pathname.startsWith('/freelancer-dashboard')) {
+    if (role !== 'FREELANCER') {
+      return <Navigate to="/client-dashboard" replace />;
+    }
+    return children;
   }
 
   if (allowedRole && role !== allowedRole) {

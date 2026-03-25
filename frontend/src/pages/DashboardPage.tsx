@@ -1,8 +1,10 @@
 import { Navigate } from 'react-router-dom';
+import { useAuth } from '@/context/AuthContext';
 
 // Optional alias page for legacy /dashboard route. Redirect based on user role.
 const DashboardPage = () => {
-  const role = localStorage.getItem('role');
+  const auth = useAuth();
+  const role = auth.role;
   if (role === 'CLIENT') {
     return <Navigate to="/client-dashboard" replace />;
   }

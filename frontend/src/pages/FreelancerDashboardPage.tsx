@@ -1,7 +1,7 @@
-import DashboardLayout from "@/components/DashboardLayout";
+import { DashboardContent } from "@/components/DashboardLayout";
 
 const FreelancerDashboardPage = () => {
-  return <DashboardLayout />;
+  return <DashboardContent />;
 };
 
 export default FreelancerDashboardPage;

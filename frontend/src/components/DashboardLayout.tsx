@@ -7,6 +7,55 @@ import {
 } from "lucide-react";
 import { Briefcase, Clock, CheckCircle2, DollarSign } from "lucide-react";
 import { NavLink } from "react-router-dom";
+import { useState, useEffect } from "react";
+import { getJobs, getTasks, getEarnings } from "../lib/auth";
+
+interface Job {
+  id: number;
+  title: string;
+  description: string;
+  budget: number;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  client: {
+    id: number;
+    email: string;
+    role: string;
+  };
+  freelancer?: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
+
+interface Task {
+  id: number;
+  title: string;
+  description: string;
+  status: string;
+  created_at: string;
+  updated_at: string;
+  job: Job;
+  freelancer: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
+
+interface Earnings {
+  id: number;
+  amount: number;
+  earned_at: string;
+  job: Job;
+  freelancer: {
+    id: number;
+    email: string;
+    role: string;
+  };
+}
 
 const navItems = [
   { label: "Dashboard", icon: Home, to: "/dashboard" },
@@ -110,6 +159,58 @@ export const DashboardTopbar = ({ onOpenSidebar }: { onOpenSidebar: () => void }
 
 export const DashboardContent = () => {
   const role = localStorage.getItem('role');
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [tasks, setTasks] = useState<Task[]>([]);
+  const [earnings, setEarnings] = useState<Earnings[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      setLoading(true);
+      try {
+        if (role === 'CLIENT') {
+          const jobsResponse = await getJobs();
+          if (jobsResponse.success) {
+            setJobs(jobsResponse.data || []);
+          }
+        } else if (role === 'FREELANCER') {
+          const [tasksResponse, earningsResponse] = await Promise.all([
+            getTasks(),
+            getEarnings()
+          ]);
+          if (tasksResponse.success) {
+            setTasks(tasksResponse.data || []);
+          }
+          if (earningsResponse.success) {
+            setEarnings(earningsResponse.data || []);
+          }
+        }
+      } catch (error) {
+        console.error('Error fetching dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [role]);
+
+  if (loading) {
+    return (
+      <main className="space-y-6 p-4 md:p-6">
+        <div className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
+          <div className="animate-pulse">
+            <div className="h-6 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+              {[...Array(4)].map((_, i) => (
+                <div key={i} className="h-24 bg-gray-200 rounded"></div>
+              ))}
+            </div>
+          </div>
+        </div>
+      </main>
+    );
+  }
 
   return (
     <main className="space-y-6 p-4 md:p-6">
@@ -165,37 +266,18 @@ export const DashboardContent = () => {
         <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
           <h3 className="text-lg font-semibold text-black dark:text-white">My Jobs</h3>
           <div className="mt-4 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-            {[
-              {
-                title: "Mobile App UI Design",
-                budget: "120,000",
-                status: "Open",
-                bids: 14,
-              },
-              {
-                title: "React E-commerce Website",
-                budget: "250,000",
-                status: "In Progress",
-                bids: 21,
-              },
-              {
-                title: "SEO Content Writing",
-                budget: "45,000",
-                status: "Completed",
-                bids: 9,
-              },
-            ].map((job) => (
+            {jobs.length > 0 ? jobs.map((job: Job) => (
               <article
-                key={job.title}
+                key={job.id}
                 className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-slate-800"
               >
                 <div className="mb-3 flex items-center justify-between">
                   <h4 className="text-base font-semibold text-slate-900 dark:text-white">{job.title}</h4>
                   <span
                     className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
-                      job.status === "Open"
+                      job.status === "OPEN"
                         ? "bg-sky-100 text-sky-700"
-                        : job.status === "In Progress"
+                        : job.status === "IN_PROGRESS"
                         ? "bg-amber-100 text-amber-700"
                         : "bg-slate-100 text-slate-700"
                     }`}
@@ -205,18 +287,25 @@ export const DashboardContent = () => {
                 </div>
 
                 <p className="mb-2 text-sm text-slate-500 dark:text-gray-300">Budget: KES {job.budget}</p>
-                <p className="mb-4 text-sm text-slate-500 dark:text-gray-300">Bids: {job.bids}</p>
+                <p className="mb-4 text-sm text-slate-500 dark:text-gray-300">Description: {job.description.substring(0, 100)}...</p>
 
                 <div className="flex flex-wrap gap-2">
                   <button className="inline-flex items-center justify-center rounded-lg px-3 py-2 text-sm font-medium text-white transition hover:opacity-90" style={{ backgroundColor: '#70e000' }}>
-                    View Bids
+                    View Details
                   </button>
                   <button className="inline-flex items-center justify-center rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm font-medium text-slate-700 transition hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:bg-slate-900 dark:text-gray-100 dark:hover:bg-slate-800">
                     Edit Job
                   </button>
                 </div>
               </article>
-            ))}
+            )) : (
+              <div className="col-span-full text-center py-8">
+                <p className="text-gray-500 dark:text-gray-400">No jobs posted yet.</p>
+                <button className="mt-2 inline-flex items-center justify-center rounded-lg px-4 py-2 text-sm font-medium text-white transition hover:opacity-90" style={{ backgroundColor: '#70e000' }}>
+                  Post Your First Job
+                </button>
+              </div>
+            )}
           </div>
         </section>
       )}
@@ -230,150 +319,40 @@ export const DashboardContent = () => {
             </div>
 
             <div className="space-y-3">
-              {[
-                {
-                  title: 'Design mobile app UI',
-                  client: 'Acme Co',
-                  deadline: 'Apr 25',
-                  priority: 'High',
-                },
-                {
-                  title: 'Write SEO content',
-                  client: 'Marketify',
-                  deadline: 'Apr 28',
-                  priority: 'Medium',
-                },
-                {
-                  title: 'Fix dashboard bugs',
-                  client: 'KaziBridge',
-                  deadline: 'Apr 30',
-                  priority: 'Low',
-                },
-              ].map((task) => {
+              {tasks.length > 0 ? tasks.map((task: Task) => {
                 const priorityClasses =
-                  task.priority === 'High'
+                  task.status === 'PENDING'
                     ? 'bg-rose-100 text-rose-700'
-                    : task.priority === 'Medium'
+                    : task.status === 'IN_PROGRESS'
                     ? 'bg-amber-100 text-amber-700'
                     : 'bg-emerald-100 text-emerald-700';
 
                 return (
                   <article
-                    key={task.title}
+                    key={task.id}
                     className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-slate-800"
                   >
                     <div className="flex items-start justify-between gap-4">
                       <div>
                         <h4 className="text-base font-semibold text-gray-900 dark:text-white">{task.title}</h4>
-                        <p className="text-sm text-gray-500 dark:text-gray-300">Client: {task.client}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-300">Deadline: {task.deadline}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-300">Job: {task.job.title}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-300">Created: {new Date(task.created_at).toLocaleDateString()}</p>
                       </div>
                       <span className={`rounded-full px-2 py-1 text-xs font-semibold ${priorityClasses}`}>
-                        {task.priority}
+                        {task.status}
                       </span>
                     </div>
                   </article>
                 );
-              })}
-            </div>
-          </section>
-
-          <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
-            <div className="mb-4 flex items-center justify-between">
-              <h3 className="text-lg font-semibold text-black dark:text-white">Find Jobs</h3>
-              <span className="text-sm text-gray-500 dark:text-gray-400">Bid on projects matched to your skills</span>
-            </div>
-
-            <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {[
-                {
-                  title: 'E-commerce Website Redesign',
-                  budget: '350,000',
-                  deadline: 'Apr 28',
-                  recommended: true,
-                },
-                {
-                  title: 'Mobile App MVP (React Native)',
-                  budget: '420,000',
-                  deadline: 'May 6',
-                  recommended: false,
-                },
-                {
-                  title: 'SEO + Content Strategy',
-                  budget: '95,000',
-                  deadline: 'Apr 30',
-                  recommended: true,
-                },
-              ].map((job) => (
-                <article
-                  key={job.title}
-                  className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm transition hover:-translate-y-0.5 hover:shadow-md dark:border-gray-700 dark:bg-slate-800"
-                >
-                  <div className="mb-3 flex items-start justify-between gap-2">
-                    <h4 className="text-base font-semibold text-slate-900 dark:text-white">{job.title}</h4>
-                    {job.recommended ? (
-                      <span className="rounded-full bg-emerald-100 px-2 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-200">
-                        Recommended
-                      </span>
-                    ) : null}
-                  </div>
-
-                  <p className="mb-1 text-sm text-slate-500 dark:text-gray-300">Budget: KES {job.budget}</p>
-                  <p className="mb-4 text-sm text-slate-500 dark:text-gray-300">Deadline: {job.deadline}</p>
-
-                  <button className="w-full rounded-lg bg-blue-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-blue-700">
-                    Place Bid
-                  </button>
-                </article>
-              ))}
+              }) : (
+                <div className="text-center py-8">
+                  <p className="text-gray-500 dark:text-gray-400">No tasks assigned yet.</p>
+                </div>
+              )}
             </div>
           </section>
         </>
       )}
-
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-slate-800">
-        <div className="mb-4 flex items-center justify-between">
-          <h3 className="text-lg font-semibold text-black dark:text-white">Earnings</h3>
-          <span className="text-sm text-gray-500 dark:text-gray-400">Track your income</span>
-        </div>
-
-        <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-slate-800">
-            <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-300">Total Earnings</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">KES 1,250,000</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-slate-800">
-            <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-300">This Month</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">KES 120,000</p>
-          </div>
-          <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-slate-800">
-            <p className="text-xs uppercase tracking-wider text-gray-500 dark:text-gray-300">Pending Balance</p>
-            <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">KES 28,000</p>
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <h4 className="text-sm font-semibold text-slate-900 dark:text-white">Recent Payments</h4>
-          <ul className="mt-3 space-y-2 border-t border-gray-100 pt-3 dark:border-gray-700">
-            {[
-              { label: 'Logo design (Acme Corp)', amount: 'KES 45,000', date: 'Mar 22' },
-              { label: 'Landing page development', amount: 'KES 80,000', date: 'Mar 18' },
-              { label: 'SEO content package', amount: 'KES 30,000', date: 'Mar 15' },
-            ].map((payment) => (
-              <li
-                key={payment.label}
-                className="flex items-center justify-between rounded-lg p-3 text-sm transition hover:bg-gray-50 dark:hover:bg-slate-900"
-              >
-                <div>
-                  <p className="font-medium text-slate-900 dark:text-white">{payment.label}</p>
-                  <p className="text-xs text-gray-500 dark:text-gray-300">{payment.date}</p>
-                </div>
-                <span className="font-semibold text-slate-900 dark:text-white">{payment.amount}</span>
-              </li>
-            ))}
-          </ul>
-        </div>
-      </section>
 
       <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm">
         <div className="mb-4 flex items-center justify-between">

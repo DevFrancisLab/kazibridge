@@ -1,9 +1,12 @@
 from django.urls import path
-from .views import RegisterView, LoginView, LogoutView, MeView
+from .views import RegisterView, LoginView, LogoutView, MeView, JobListCreateView, TaskListView, EarningsListView
 
 urlpatterns = [
     path('register/', RegisterView.as_view(), name='register'),
     path('login/', LoginView.as_view(), name='login'),
     path('logout/', LogoutView.as_view(), name='logout'),
     path('me/', MeView.as_view(), name='me'),
+    path('jobs/', JobListCreateView.as_view(), name='jobs'),
+    path('tasks/', TaskListView.as_view(), name='tasks'),
+    path('earnings/', EarningsListView.as_view(), name='earnings'),
 ]
